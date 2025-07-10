@@ -87,14 +87,27 @@ export default function BankAccountSelector() {
     const authError = searchParams.get('auth_error');
 
     if (authComplete && ref) {
+      console.log('🔄 Authentication completed, restoring flow state...');
+      
       // Restore flow state from localStorage
       const savedRequisition = localStorage.getItem('bank_requisition');
       const savedSelectedBank = localStorage.getItem('selected_bank');
       const savedSelectedCountry = localStorage.getItem('selected_country');
       
+      console.log('💾 Saved data:', {
+        hasRequisition: !!savedRequisition,
+        hasBank: !!savedSelectedBank,
+        hasCountry: !!savedSelectedCountry
+      });
+      
       if (savedRequisition && savedSelectedBank && savedSelectedCountry) {
-        setRequisition(JSON.parse(savedRequisition));
-        setSelectedBank(JSON.parse(savedSelectedBank));
+        const requisitionData = JSON.parse(savedRequisition);
+        const bankData = JSON.parse(savedSelectedBank);
+        
+        console.log('✅ Restoring state with requisition ID:', requisitionData.id);
+        
+        setRequisition(requisitionData);
+        setSelectedBank(bankData);
         setSelectedCountry(savedSelectedCountry);
         setStep('accounts');
         
@@ -104,10 +117,16 @@ export default function BankAccountSelector() {
           description: "Loading your accounts...",
         });
         
-        // Load accounts after state is restored
-        setTimeout(() => {
-          loadAccounts();
-        }, 100);
+        // Load accounts directly with the requisition data
+        loadAccountsWithRequisition(requisitionData);
+      } else {
+        console.error('❌ Missing saved flow data');
+        toast({
+          title: "Session expired",
+          description: "Please restart the bank connection process.",
+          variant: "destructive"
+        });
+        resetFlow();
       }
       
       // Clean up URL params
@@ -294,6 +313,53 @@ export default function BankAccountSelector() {
         description: error instanceof Error ? error.message : "Could not create bank connection",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 4: Handle return from bank auth and load accounts (REAL API)
+  const loadAccountsWithRequisition = async (requisitionData: Requisition) => {
+    setLoading(true);
+    try {
+      console.log('🔥 REAL API: Loading accounts for requisition:', requisitionData.id);
+      
+      // Check requisition status first
+      const reqStatus = await apiCall(`/requisitions/${requisitionData.id}/`) as any;
+      
+      console.log('Requisition status:', reqStatus);
+      
+      if (reqStatus.status !== 'LN') {
+        toast({
+          title: "Authentication not complete",
+          description: `Requisition status: ${reqStatus.status}. Please complete bank authentication first.`,
+          variant: "destructive"
+        });
+        setStep('auth');
+        return;
+      }
+
+      // Load real accounts
+      const accountPromises = reqStatus.accounts.map((accountId: string) =>
+        apiCall(`/accounts/${accountId}/`)
+      );
+
+      const accountsData = await Promise.all(accountPromises);
+      setAccounts(accountsData);
+      setStep('accounts');
+
+      toast({
+        title: "Accounts loaded",
+        description: `Found ${accountsData.length} real account(s)`,
+      });
+    } catch (error) {
+      console.error('Failed to load real accounts:', error);
+      toast({
+        title: "Failed to load accounts",
+        description: error instanceof Error ? error.message : "Could not fetch accounts",
+        variant: "destructive"
+      });
+      setStep('auth'); // Go back to auth step on error
     } finally {
       setLoading(false);
     }
