@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Shield, Globe, Building2, CreditCard, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 // Types based on GoCardless API structure
 interface Country {
@@ -91,57 +92,28 @@ export default function BankAccountSelector() {
   
   const { toast } = useToast();
 
-  // API base URL
-  const API_BASE = 'https://bankaccountdata.gocardless.com/api/v2';
-
-  // Helper function for API calls
+  // Helper function for API calls via Supabase edge function
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem('gc_access_token');
-    
-    // Try multiple CORS proxy options for real API calls
-    const corsProxies = [
-      'https://api.allorigins.win/raw?url=',
-      'https://corsproxy.io/?',
-      'https://proxy.cors.sh/',
-    ];
-    
-    let lastError;
-    
-    for (const proxy of corsProxies) {
-      try {
-        console.log(`Trying CORS proxy: ${proxy}`);
-        
-        const response = await fetch(`${proxy}${encodeURIComponent(API_BASE + endpoint)}`, {
-          ...options,
-          headers: {
-            'Authorization': token ? `Bearer ${token}` : '',
-            'Content-Type': 'application/json',
-            ...options.headers,
-          },
-        });
-
-        console.log(`Response from ${proxy}:`, response.status);
-
-        if (!response.ok) {
-          const error = await response.text();
-          console.error(`API error via ${proxy}:`, error);
-          throw new Error(error || 'API Error');
+    try {
+      const { data, error } = await supabase.functions.invoke('gocardless-api', {
+        body: {
+          endpoint,
+          method: options.method || 'GET',
+          body: options.body ? JSON.parse(options.body as string) : undefined,
+          secretId: apiSecretId,
+          secretKey: apiSecretKey
         }
+      });
 
-        const data = await response.json();
-        console.log(`Success via ${proxy}:`, data);
-        return data;
-      } catch (error) {
-        console.log(`Failed with ${proxy}:`, error);
-        lastError = error;
-        continue;
-      }
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Edge function call failed:', error);
+      throw error;
     }
-    
-    throw lastError || new Error('All CORS proxies failed');
   };
 
-  // Step 1: Get access token (REAL API)
+  // Step 1: Get access token via Edge Function
   const getAccessToken = async () => {
     if (!apiSecretId || !apiSecretKey) {
       toast({
@@ -154,57 +126,7 @@ export default function BankAccountSelector() {
 
     setLoading(true);
     try {
-      console.log('🔥 REAL API MODE: Connecting to GoCardless...');
-      console.log('Using credentials:', {
-        secret_id: apiSecretId.substring(0, 8) + '...',
-        secret_key: apiSecretKey.substring(0, 8) + '...'
-      });
-
-      // Try multiple CORS proxies for the token request
-      const corsProxies = [
-        'https://api.allorigins.win/raw?url=',
-        'https://corsproxy.io/?',
-        'https://proxy.cors.sh/',
-      ];
-
-      let tokenResponse;
-      let lastError;
-
-      for (const proxy of corsProxies) {
-        try {
-          console.log(`Trying authentication via ${proxy}`);
-          
-          const response = await fetch(`${proxy}${encodeURIComponent(API_BASE + '/token/new/')}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              secret_id: apiSecretId.trim(),
-              secret_key: apiSecretKey.trim(),
-            }),
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`HTTP ${response.status}: ${errorText}`);
-          }
-
-          tokenResponse = await response.json();
-          console.log('✅ Authentication successful via', proxy);
-          break;
-        } catch (error) {
-          console.log(`Failed with ${proxy}:`, error);
-          lastError = error;
-          continue;
-        }
-      }
-
-      if (!tokenResponse) {
-        throw lastError || new Error('All authentication attempts failed');
-      }
-      
-      localStorage.setItem('gc_access_token', tokenResponse.access);
+      console.log('🔥 Edge Function Mode: Connecting to GoCardless...');
       
       // Load real institutions
       await loadInstitutions();
@@ -212,10 +134,10 @@ export default function BankAccountSelector() {
       
       toast({
         title: "Authentication successful",
-        description: "Connected to GoCardless API",
+        description: "Connected to GoCardless API via Supabase",
       });
     } catch (error) {
-      console.error('Real API authentication error:', error);
+      console.error('Edge function authentication error:', error);
       toast({
         title: "Authentication failed", 
         description: error instanceof Error ? error.message : "Failed to connect to GoCardless API",
@@ -442,15 +364,15 @@ export default function BankAccountSelector() {
             {/* Step 1: Country Selection */}
             {step === 'country' && (
               <div className="space-y-4">
-                <div className="p-4 border rounded-lg bg-gradient-to-r from-destructive/10 to-primary/10 border-primary/20">
-                  <h4 className="font-medium mb-2 flex items-center gap-2">
-                    🔥 <span>Real API Mode</span>
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    This will make <strong>real API calls</strong> to GoCardless. 
-                    You need valid GoCardless API credentials. Make sure you're using <strong>sandbox credentials</strong> for testing.
-                  </p>
-                </div>
+                 <div className="p-4 border rounded-lg bg-gradient-to-r from-destructive/10 to-primary/10 border-primary/20">
+                   <h4 className="font-medium mb-2 flex items-center gap-2">
+                     🔥 <span>Supabase Edge Function Mode</span>
+                   </h4>
+                   <p className="text-sm text-muted-foreground">
+                     This will make <strong>secure server-side API calls</strong> to GoCardless via Supabase edge functions. 
+                     You need valid GoCardless API credentials. Make sure you're using <strong>sandbox credentials</strong> for testing.
+                   </p>
+                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
