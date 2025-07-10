@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,6 +78,38 @@ export default function BankAccountSelector() {
   
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Handle return from bank authentication
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    const authComplete = searchParams.get('auth_complete');
+    const authError = searchParams.get('auth_error');
+
+    if (authComplete && ref && requisition) {
+      // Authentication completed successfully, load accounts
+      toast({
+        title: "Bank authentication completed",
+        description: "Loading your accounts...",
+      });
+      loadAccounts();
+      
+      // Clean up URL params
+      navigate('/', { replace: true });
+    } else if (authError) {
+      toast({
+        title: "Authentication failed",
+        description: "There was an issue with bank authentication. Please try again.",
+        variant: "destructive"
+      });
+      
+      // Reset to auth step
+      setStep('auth');
+      
+      // Clean up URL params
+      navigate('/', { replace: true });
+    }
+  }, [searchParams, requisition, navigate]);
 
   // Helper function for API calls via Supabase edge function
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
