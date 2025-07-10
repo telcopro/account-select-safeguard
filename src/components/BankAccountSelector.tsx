@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Globe, Building2, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Settings } from 'lucide-react';
+import { Shield, Globe, Building2, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Settings, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -457,20 +457,35 @@ export default function BankAccountSelector() {
         {/* Main Content */}
         <Card className="shadow-elegant border-0">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              {step === 'country' && <><Globe className="h-5 w-5" /> Select Your Country</>}
-              {step === 'bank' && <><Building2 className="h-5 w-5" /> Choose Your Bank</>}
-              {step === 'auth' && <><Shield className="h-5 w-5" /> Bank Authentication</>}
-              {step === 'accounts' && <><CreditCard className="h-5 w-5" /> Select Account</>}
-              {step === 'details' && <><CheckCircle2 className="h-5 w-5" /> Account Details</>}
-            </CardTitle>
-            <CardDescription>
-              {step === 'country' && 'Select the country where your bank is located'}
-              {step === 'bank' && 'Choose your bank from the list of supported institutions'}
-              {step === 'auth' && 'You will be redirected to your bank to authenticate'}
-              {step === 'accounts' && 'Select the account you want to connect'}
-              {step === 'details' && 'Review your account information'}
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {step === 'country' && <><Globe className="h-5 w-5" /> Select Your Country</>}
+                  {step === 'bank' && <><Building2 className="h-5 w-5" /> Choose Your Bank</>}
+                  {step === 'auth' && <><Shield className="h-5 w-5" /> Bank Authentication</>}
+                  {step === 'accounts' && <><CreditCard className="h-5 w-5" /> Select Account</>}
+                  {step === 'details' && <><CheckCircle2 className="h-5 w-5" /> Account Details</>}
+                </CardTitle>
+                <CardDescription>
+                  {step === 'country' && 'Select the country where your bank is located'}
+                  {step === 'bank' && 'Choose your bank from the list of supported institutions'}
+                  {step === 'auth' && 'You will be redirected to your bank to authenticate'}
+                  {step === 'accounts' && 'Select the account you want to connect'}
+                  {step === 'details' && 'Review your account information'}
+                </CardDescription>
+              </div>
+              {step !== 'country' && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetFlow}
+                  className="text-muted-foreground hover:text-destructive"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Cancel
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
 
