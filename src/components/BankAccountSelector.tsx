@@ -447,20 +447,48 @@ export default function BankAccountSelector() {
                    </p>
                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="country">Country</Label>
-                  <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select your country" />
-                    </SelectTrigger>
-                     <SelectContent>
-                       {countries.map((country) => (
-                         <SelectItem key={country.code} value={country.code}>
-                           {country.name}
-                         </SelectItem>
-                       ))}
-                     </SelectContent>
-                  </Select>
+                <div className="space-y-4">
+                  <Label>Select Your Country</Label>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                    {countries.map((country) => {
+                      // Country code to flag emoji mapping
+                      const getFlagEmoji = (countryCode: string) => {
+                        const flags: { [key: string]: string } = {
+                          'GB': '🇬🇧', 'DE': '🇩🇪', 'FR': '🇫🇷', 'ES': '🇪🇸', 'IT': '🇮🇹',
+                          'NL': '🇳🇱', 'SE': '🇸🇪', 'NO': '🇳🇴', 'DK': '🇩🇰', 'FI': '🇫🇮',
+                          'BE': '🇧🇪', 'AT': '🇦🇹', 'PT': '🇵🇹', 'IE': '🇮🇪', 'LU': '🇱🇺',
+                          'IS': '🇮🇸', 'EE': '🇪🇪', 'LV': '🇱🇻', 'LT': '🇱🇹', 'PL': '🇵🇱',
+                          'CZ': '🇨🇿', 'SK': '🇸🇰', 'HU': '🇭🇺', 'SI': '🇸🇮', 'HR': '🇭🇷',
+                          'BG': '🇧🇬', 'RO': '🇷🇴'
+                        };
+                        return flags[countryCode] || '🏳️';
+                      };
+
+                      return (
+                        <Card
+                          key={country.code}
+                          className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 ${
+                            selectedCountry === country.code 
+                              ? 'ring-2 ring-primary bg-primary/5' 
+                              : 'hover:border-primary/50'
+                          }`}
+                          onClick={() => setSelectedCountry(country.code)}
+                        >
+                          <CardContent className="p-3 text-center">
+                            <div className="text-2xl mb-1">
+                              {getFlagEmoji(country.code)}
+                            </div>
+                            <div className="text-xs font-medium truncate">
+                              {country.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {country.code}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <Button 
