@@ -166,6 +166,13 @@ export default function BankAccountSelector() {
     loadCountries();
   }, []);
 
+  // Auto-load institutions when country is selected
+  useEffect(() => {
+    if (selectedCountry) {
+      getAccessToken();
+    }
+  }, [selectedCountry]);
+
   // Step 1: Get access token via Edge Function
   const getAccessToken = async () => {
     setLoading(true);
@@ -490,14 +497,12 @@ export default function BankAccountSelector() {
                     })}
                   </div>
                 </div>
-
-                <Button 
-                  onClick={getAccessToken} 
-                  disabled={!selectedCountry || loading}
-                  className="w-full"
-                >
-                  {loading ? 'Connecting...' : 'Continue to Bank Selection'}
-                </Button>
+                
+                {countries.length === 0 && !loading && (
+                  <p className="text-muted-foreground text-center py-4">
+                    No countries available. Please configure countries first.
+                  </p>
+                )}
               </div>
             )}
 
