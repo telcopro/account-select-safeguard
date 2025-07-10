@@ -97,18 +97,23 @@ export default function BankAccountSelector() {
   // Helper function for API calls
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('gc_access_token');
+    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
     
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const response = await fetch(`${proxyUrl}${API_BASE}${endpoint}`, {
       ...options,
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',
         'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
         ...options.headers,
       },
     });
 
+    console.log(`API call to ${endpoint}:`, response.status);
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'API Error' }));
+      console.error(`API error for ${endpoint}:`, error);
       throw new Error(error.detail || 'API Error');
     }
 
@@ -128,10 +133,13 @@ export default function BankAccountSelector() {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/token/new/`, {
+      // Use a CORS proxy for the prototype (not for production!)
+      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+      const response = await fetch(`${proxyUrl}${API_BASE}/token/new/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
         },
         body: JSON.stringify({
           secret_id: apiSecretId,
@@ -139,11 +147,17 @@ export default function BankAccountSelector() {
         }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       if (!response.ok) {
-        throw new Error('Failed to authenticate');
+        const errorText = await response.text();
+        console.log('Error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Authentication failed'}`);
       }
 
       const data = await response.json();
+      console.log('Token response:', data);
       localStorage.setItem('gc_access_token', data.access);
       
       // Load institutions for selected country
@@ -155,9 +169,10 @@ export default function BankAccountSelector() {
         description: "Connected to GoCardless API",
       });
     } catch (error) {
+      console.error('Authentication error:', error);
       toast({
-        title: "Authentication failed",
-        description: error instanceof Error ? error.message : "Failed to connect to GoCardless",
+        title: "Authentication failed", 
+        description: error instanceof Error ? error.message : "Failed to connect to GoCardless. This might be due to CORS restrictions - in production, API calls should be made from a backend server.",
         variant: "destructive"
       });
     } finally {
