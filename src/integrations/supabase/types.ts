@@ -545,6 +545,75 @@ export type Database = {
         }
         Relationships: []
       }
+      supported_countries: {
+        Row: {
+          country_code: string
+          country_name: string
+          created_at: string
+          display_order: number | null
+          id: string
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          country_code: string
+          country_name: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          country_code?: string
+          country_name?: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      supported_institutions: {
+        Row: {
+          bic: string | null
+          country_code: string
+          created_at: string
+          display_order: number | null
+          id: string
+          institution_id: string
+          institution_name: string
+          is_enabled: boolean
+          logo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          bic?: string | null
+          country_code: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          institution_id: string
+          institution_name: string
+          is_enabled?: boolean
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bic?: string | null
+          country_code?: string
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          institution_id?: string
+          institution_name?: string
+          is_enabled?: boolean
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

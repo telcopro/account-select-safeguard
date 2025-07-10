@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Globe, Building2, CreditCard, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
+import { Shield, Globe, Building2, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -96,67 +96,30 @@ export default function BankAccountSelector() {
     }
   };
 
-  // Load countries from GoCardless API
+  // Load configured countries from database
   const loadCountries = async () => {
     setLoading(true);
     try {
-      // Get all institutions to extract unique countries
-      const data = await apiCall('/institutions/') as Institution[];
+      const { data, error } = await supabase
+        .from('supported_countries')
+        .select('*')
+        .eq('is_enabled', true)
+        .order('display_order');
       
-      // Create a map to track unique countries with proper names
-      const countryMap = new Map();
+      if (error) throw error;
       
-      // Country code to name mapping for common European countries
-      const countryNames: { [key: string]: string } = {
-        'GB': 'United Kingdom',
-        'DE': 'Germany', 
-        'FR': 'France',
-        'ES': 'Spain',
-        'IT': 'Italy',
-        'NL': 'Netherlands',
-        'SE': 'Sweden',
-        'NO': 'Norway',
-        'DK': 'Denmark',
-        'FI': 'Finland',
-        'BE': 'Belgium',
-        'AT': 'Austria',
-        'PT': 'Portugal',
-        'IE': 'Ireland',
-        'LU': 'Luxembourg',
-        'IS': 'Iceland',
-        'EE': 'Estonia',
-        'LV': 'Latvia',  
-        'LT': 'Lithuania',
-        'PL': 'Poland',
-        'CZ': 'Czech Republic',
-        'SK': 'Slovakia',
-        'HU': 'Hungary',
-        'SI': 'Slovenia',
-        'HR': 'Croatia',
-        'BG': 'Bulgaria',
-        'RO': 'Romania'
-      };
+      // Transform to match expected format
+      const countries = (data || []).map(country => ({
+        code: country.country_code,
+        name: country.country_name
+      }));
       
-      // Extract unique countries from institutions
-      data.forEach(institution => {
-        institution.countries.forEach(countryCode => {
-          if (!countryMap.has(countryCode)) {
-            countryMap.set(countryCode, {
-              code: countryCode,
-              name: countryNames[countryCode] || countryCode
-            });
-          }
-        });
-      });
-      
-      // Convert map to array and sort by name
-      const countriesArray = Array.from(countryMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-      setCountries(countriesArray);
+      setCountries(countries);
     } catch (error) {
-      console.error('Failed to load countries:', error);
+      console.error('Failed to load configured countries:', error);
       toast({
         title: "Failed to load countries",
-        description: "Could not fetch supported countries. Please try again.",
+        description: "Could not fetch configured countries. Please configure countries first.",
         variant: "destructive"
       });
     } finally {
@@ -195,18 +158,37 @@ export default function BankAccountSelector() {
     }
   };
 
-  // Step 2: Load institutions for selected country
+  // Step 2: Load configured institutions for selected country
   const loadInstitutions = async () => {
     if (!selectedCountry) return;
 
     setLoading(true);
     try {
-      const data = await apiCall(`/institutions/?country=${selectedCountry}`) as Institution[];
-      setInstitutions(data);
+      // Get configured institutions for this country
+      const { data, error } = await supabase
+        .from('supported_institutions')
+        .select('*')
+        .eq('country_code', selectedCountry)
+        .eq('is_enabled', true)
+        .order('display_order');
+      
+      if (error) throw error;
+      
+      // Transform to match expected Institution format
+      const institutions = (data || []).map(inst => ({
+        id: inst.institution_id,
+        name: inst.institution_name,
+        bic: inst.bic || '',
+        transaction_total_days: '90', // Default value
+        countries: [inst.country_code],
+        logo: inst.logo_url || ''
+      }));
+      
+      setInstitutions(institutions);
     } catch (error) {
       toast({
         title: "Failed to load banks",
-        description: error instanceof Error ? error.message : "Could not fetch institutions",
+        description: error instanceof Error ? error.message : "Could not fetch configured institutions",
         variant: "destructive"
       });
     } finally {
@@ -359,6 +341,16 @@ export default function BankAccountSelector() {
             Connect your bank account securely using GoCardless Open Banking API. 
             Your data is encrypted and processed according to PSD2 standards.
           </p>
+          <div className="flex justify-center">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => window.open('/configuration', '_blank')}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Configure Banks
+            </Button>
+          </div>
         </div>
 
         {/* Progress Steps */}
