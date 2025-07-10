@@ -97,30 +97,85 @@ export default function BankAccountSelector() {
   // Helper function for API calls
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
     const token = localStorage.getItem('gc_access_token');
-    const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
     
-    const response = await fetch(`${proxyUrl}${API_BASE}${endpoint}`, {
-      ...options,
-      headers: {
-        'Authorization': token ? `Bearer ${token}` : '',
-        'Content-Type': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest',
-        ...options.headers,
-      },
-    });
-
-    console.log(`API call to ${endpoint}:`, response.status);
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'API Error' }));
-      console.error(`API error for ${endpoint}:`, error);
-      throw new Error(error.detail || 'API Error');
+    // For prototype: simulate API responses with mock data
+    console.log(`Mock API call to ${endpoint}`);
+    
+    if (endpoint.includes('/institutions/')) {
+      return getMockInstitutions(selectedCountry);
+    }
+    
+    if (endpoint.includes('/requisitions/')) {
+      return getMockRequisition();
+    }
+    
+    if (endpoint.includes('/accounts/')) {
+      return getMockAccountData();
     }
 
-    return response.json();
+    throw new Error('API endpoint not implemented in mock');
   };
 
-  // Step 1: Get access token
+  // Mock data functions
+  const getMockInstitutions = (country: string) => {
+    const mockInstitutions = {
+      'GB': [
+        { id: 'MONZO_GBBGB2L', name: 'Monzo', bic: 'MONZGB2L', transaction_total_days: '90', countries: ['GB'], logo: 'https://cdn.nordigen.com/ais/MONZO_GBBGB2L.png' },
+        { id: 'REVOLUT_GBBGB2L', name: 'Revolut', bic: 'REVOGB21', transaction_total_days: '90', countries: ['GB'], logo: 'https://cdn.nordigen.com/ais/REVOLUT_GBBGB2L.png' },
+        { id: 'STARLING_GBBGB2L', name: 'Starling Bank', bic: 'SRLGGB2L', transaction_total_days: '90', countries: ['GB'], logo: 'https://cdn.nordigen.com/ais/STARLING_GBBGB2L.png' },
+      ],
+      'SE': [
+        { id: 'SWEDBANK_SWEDSESS', name: 'Swedbank', bic: 'SWEDSESS', transaction_total_days: '90', countries: ['SE'], logo: 'https://cdn.nordigen.com/ais/SWEDBANK_SWEDSESS.png' },
+        { id: 'SEB_SESSESS1', name: 'SEB', bic: 'ESSESESS', transaction_total_days: '90', countries: ['SE'], logo: 'https://cdn.nordigen.com/ais/SEB_SESSESS1.png' },
+        { id: 'NORDEA_NDEASESSKK', name: 'Nordea', bic: 'NDEASESS', transaction_total_days: '90', countries: ['SE'], logo: 'https://cdn.nordigen.com/ais/NORDEA_NDEASESSKK.png' },
+      ]
+    };
+    
+    return mockInstitutions[country as keyof typeof mockInstitutions] || [];
+  };
+
+  const getMockRequisition = () => ({
+    id: 'mock-requisition-123',
+    redirect: `${window.location.origin}/bank-auth-return`,
+    status: 'CR',
+    institution_id: selectedBank?.id || 'MOCK_BANK',
+    reference: `ref_${Date.now()}`,
+    accounts: [],
+    user_language: 'EN',
+    link: '#mock-auth-link',
+    account_selection: true,
+    redirect_immediate: false
+  });
+
+  const getMockAccountData = () => ({
+    id: 'mock-account-123',
+    iban: 'GB33BUKB20201555555555',
+    institution_id: selectedBank?.id || 'MOCK_BANK',
+    status: 'READY',
+    owner_name: 'John Doe',
+    details: {
+      iban: 'GB33BUKB20201555555555',
+      currency: 'GBP',
+      name: 'Current Account',
+      displayName: 'John\'s Current Account',
+      product: 'Current Account',
+      cashAccountType: 'CACC'
+    },
+    balances: [
+      {
+        balanceAmount: { amount: '1234.56', currency: 'GBP' },
+        balanceType: 'expected',
+        referenceDate: new Date().toISOString().split('T')[0]
+      },
+      {
+        balanceAmount: { amount: '1200.00', currency: 'GBP' },
+        balanceType: 'interimAvailable',
+        referenceDate: new Date().toISOString().split('T')[0]
+      }
+    ]
+  });
+
+  // Step 1: Get access token (now mocked for prototype)
   const getAccessToken = async () => {
     if (!apiSecretId || !apiSecretKey) {
       toast({
@@ -133,78 +188,34 @@ export default function BankAccountSelector() {
 
     setLoading(true);
     try {
-      console.log('Attempting authentication with:', {
+      console.log('🎭 PROTOTYPE MODE: Simulating GoCardless authentication...');
+      console.log('In production, this would validate:', {
         secret_id: apiSecretId.substring(0, 8) + '...',
-        secret_key: apiSecretKey.substring(0, 8) + '...',
-        endpoint: `${API_BASE}/token/new/`
+        secret_key: apiSecretKey.substring(0, 8) + '...'
       });
 
-      // Use a CORS proxy for the prototype (not for production!)
-      const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-      const requestBody = {
-        secret_id: apiSecretId.trim(),
-        secret_key: apiSecretKey.trim(),
-      };
-
-      console.log('Request body structure:', Object.keys(requestBody));
-
-      const response = await fetch(`${proxyUrl}${API_BASE}/token/new/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Error response body:', errorText);
-        
-        let errorMessage = `HTTP ${response.status}`;
-        
-        try {
-          const errorData = JSON.parse(errorText);
-          console.log('Parsed error:', errorData);
-          errorMessage = errorData.detail || errorData.message || errorMessage;
-        } catch (e) {
-          errorMessage = errorText || errorMessage;
-        }
-
-        // Specific guidance for common errors
-        if (response.status === 403) {
-          errorMessage += '. Check that your credentials are correct and for the right environment (sandbox/live).';
-        }
-
-        throw new Error(errorMessage);
-      }
-
-      const data = await response.json();
-      console.log('Success! Token received:', { 
-        access_token_length: data.access?.length,
-        token_type: typeof data.access,
-        expires_in: data.access_expires
-      });
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      localStorage.setItem('gc_access_token', data.access);
+      // Mock successful authentication
+      const mockToken = 'mock-access-token-' + Date.now();
+      localStorage.setItem('gc_access_token', mockToken);
       
-      // Load institutions for selected country
+      console.log('✅ Mock authentication successful');
+      
+      // Load mock institutions for selected country
       await loadInstitutions();
       setStep('bank');
       
       toast({
         title: "Authentication successful",
-        description: "Connected to GoCardless API",
+        description: "Connected to GoCardless API (Prototype Mode)",
       });
     } catch (error) {
       console.error('Authentication error details:', error);
       toast({
         title: "Authentication failed", 
-        description: error instanceof Error ? error.message : "Failed to connect to GoCardless. This might be due to CORS restrictions - in production, API calls should be made from a backend server.",
+        description: error instanceof Error ? error.message : "Failed to connect to GoCardless",
         variant: "destructive"
       });
     } finally {
@@ -218,7 +229,7 @@ export default function BankAccountSelector() {
 
     setLoading(true);
     try {
-      const data = await apiCall(`/institutions/?country=${selectedCountry}`);
+      const data = await apiCall(`/institutions/?country=${selectedCountry}`) as Institution[];
       setInstitutions(data);
     } catch (error) {
       toast({
@@ -245,7 +256,7 @@ export default function BankAccountSelector() {
           reference: `ref_${Date.now()}`,
           user_language: 'EN',
         }),
-      });
+      }) as Requisition;
 
       setRequisition(requisitionData);
       setStep('auth');
@@ -265,36 +276,41 @@ export default function BankAccountSelector() {
     }
   };
 
-  // Step 4: Handle return from bank auth and load accounts
+  // Step 4: Handle return from bank auth and load accounts (now mocked)
   const loadAccounts = async () => {
     if (!requisition?.id) return;
 
     setLoading(true);
     try {
-      // Check requisition status first
-      const reqStatus = await apiCall(`/requisitions/${requisition.id}/`);
+      console.log('🎭 PROTOTYPE: Simulating account loading...');
       
-      if (reqStatus.status !== 'LN') {
-        toast({
-          title: "Authentication not complete",
-          description: "Please complete the bank authentication process first",
-          variant: "destructive"
-        });
-        return;
-      }
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock multiple accounts
+      const mockAccounts = [
+        {
+          id: 'account-1',
+          iban: 'GB33BUKB20201555555555',
+          institution_id: selectedBank?.id || 'MOCK_BANK',
+          status: 'READY',
+          owner_name: 'John Doe'
+        },
+        {
+          id: 'account-2', 
+          iban: 'GB82WEST12345698765432',
+          institution_id: selectedBank?.id || 'MOCK_BANK',
+          status: 'READY',
+          owner_name: 'John Doe'
+        }
+      ];
 
-      // Load accounts
-      const accountPromises = reqStatus.accounts.map((accountId: string) =>
-        apiCall(`/accounts/${accountId}/`)
-      );
-
-      const accountsData = await Promise.all(accountPromises);
-      setAccounts(accountsData);
+      setAccounts(mockAccounts);
       setStep('accounts');
 
       toast({
         title: "Accounts loaded",
-        description: `Found ${accountsData.length} account(s)`,
+        description: `Found ${mockAccounts.length} account(s) (Prototype Mode)`,
       });
     } catch (error) {
       toast({
@@ -307,26 +323,29 @@ export default function BankAccountSelector() {
     }
   };
 
-  // Step 5: Load account details
+  // Step 5: Load account details (now mocked)
   const selectAccount = async (account: Account) => {
     setLoading(true);
     try {
-      // Get detailed account information
-      const [details, balances] = await Promise.all([
-        apiCall(`/accounts/${account.id}/details/`),
-        apiCall(`/accounts/${account.id}/balances/`),
-      ]);
-
-      setSelectedAccount({
+      console.log('🎭 PROTOTYPE: Loading account details...');
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      // Use mock data function
+      const accountWithDetails = {
         ...account,
-        details: details.account,
-        balances: balances.balances,
-      });
+        ...getMockAccountData(),
+        id: account.id,
+        iban: account.iban
+      };
+
+      setSelectedAccount(accountWithDetails);
       setStep('details');
 
       toast({
         title: "Account details loaded",
-        description: "Account information retrieved successfully",
+        description: "Account information retrieved successfully (Prototype Mode)",
       });
     } catch (error) {
       toast({
@@ -417,14 +436,13 @@ export default function BankAccountSelector() {
             {/* Step 1: Country Selection */}
             {step === 'country' && (
               <div className="space-y-4">
-                <div className="p-4 border rounded-lg bg-muted/50">
-                  <h4 className="font-medium mb-2">⚠️ GoCardless Credentials Setup</h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Make sure you're using <strong>sandbox credentials</strong> for testing</li>
-                    <li>• Verify your Secret ID and Secret Key are from the same environment</li>
-                    <li>• Copy credentials exactly (no extra spaces)</li>
-                    <li>• Check if your account has API access enabled</li>
-                  </ul>
+                <div className="p-4 border rounded-lg bg-gradient-to-r from-primary/10 to-accent/10">
+                  <h4 className="font-medium mb-2">🎭 Prototype Mode</h4>
+                  <p className="text-sm text-muted-foreground">
+                    This is a <strong>demonstration</strong> of the GoCardless API integration. 
+                    Enter any values for Secret ID and Key - the prototype will simulate the complete flow 
+                    with realistic mock data including bank logos and account information.
+                  </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
@@ -433,7 +451,7 @@ export default function BankAccountSelector() {
                     <Input
                       id="secret-id"
                       type="password"
-                      placeholder="Enter your Secret ID"
+                      placeholder="Enter any value (prototype mode)"
                       value={apiSecretId}
                       onChange={(e) => setApiSecretId(e.target.value)}
                     />
@@ -443,7 +461,7 @@ export default function BankAccountSelector() {
                     <Input
                       id="secret-key"
                       type="password"
-                      placeholder="Enter your Secret Key"
+                      placeholder="Enter any value (prototype mode)"
                       value={apiSecretKey}
                       onChange={(e) => setApiSecretKey(e.target.value)}
                     />
@@ -535,31 +553,21 @@ export default function BankAccountSelector() {
                     </div>
                   </div>
                   
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    You will be redirected to {selectedBank.name} to securely authenticate and 
-                    authorize access to your account information.
-                  </p>
+                  <div className="p-4 border rounded-lg bg-gradient-to-r from-primary/10 to-accent/10">
+                    <p className="text-sm text-muted-foreground">
+                      🎭 <strong>Prototype Mode:</strong> In a real implementation, you would be redirected to {selectedBank.name} 
+                      for secure authentication. This prototype simulates the complete flow.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
                   <Button 
-                    onClick={() => window.open(requisition.link, '_blank')}
-                    className="bg-gradient-primary hover:bg-gradient-accent"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Authenticate with {selectedBank.name}
-                  </Button>
-                  
-                  <p className="text-sm text-muted-foreground">
-                    After authentication, click the button below to continue
-                  </p>
-                  
-                  <Button 
-                    variant="outline" 
                     onClick={loadAccounts}
                     disabled={loading}
+                    className="bg-gradient-primary hover:bg-gradient-accent"
                   >
-                    {loading ? 'Loading Accounts...' : 'I have completed authentication'}
+                    {loading ? 'Loading Accounts...' : `Simulate Authentication with ${selectedBank.name}`}
                   </Button>
                 </div>
               </div>
