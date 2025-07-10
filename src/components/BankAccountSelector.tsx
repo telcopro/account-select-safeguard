@@ -543,7 +543,7 @@ export default function BankAccountSelector() {
                     onClick={() => window.location.href = requisition.link}
                     className="bg-gradient-primary hover:bg-gradient-accent"
                   >
-                    <ExternalLink className="h-4 w-4 mr-2" />
+                    <Shield className="h-4 w-4 mr-2" />
                     Authenticate with {selectedBank.name}
                   </Button>
                   
