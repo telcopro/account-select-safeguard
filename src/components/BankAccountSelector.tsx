@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,25 +64,12 @@ interface Requisition {
   redirect_immediate: boolean;
 }
 
-// Mock data for countries and institutions (you'll replace this with API calls)
-const mockCountries: Country[] = [
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'FR', name: 'France' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'SE', name: 'Sweden' },
-  { code: 'NO', name: 'Norway' },
-  { code: 'DK', name: 'Denmark' },
-  { code: 'FI', name: 'Finland' },
-];
-
 export default function BankAccountSelector() {
   const [step, setStep] = useState<'country' | 'bank' | 'auth' | 'accounts' | 'details'>('country');
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [selectedBank, setSelectedBank] = useState<Institution | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
@@ -108,6 +95,79 @@ export default function BankAccountSelector() {
       throw error;
     }
   };
+
+  // Load countries from GoCardless API
+  const loadCountries = async () => {
+    setLoading(true);
+    try {
+      // Get all institutions to extract unique countries
+      const data = await apiCall('/institutions/') as Institution[];
+      
+      // Create a map to track unique countries with proper names
+      const countryMap = new Map();
+      
+      // Country code to name mapping for common European countries
+      const countryNames: { [key: string]: string } = {
+        'GB': 'United Kingdom',
+        'DE': 'Germany', 
+        'FR': 'France',
+        'ES': 'Spain',
+        'IT': 'Italy',
+        'NL': 'Netherlands',
+        'SE': 'Sweden',
+        'NO': 'Norway',
+        'DK': 'Denmark',
+        'FI': 'Finland',
+        'BE': 'Belgium',
+        'AT': 'Austria',
+        'PT': 'Portugal',
+        'IE': 'Ireland',
+        'LU': 'Luxembourg',
+        'IS': 'Iceland',
+        'EE': 'Estonia',
+        'LV': 'Latvia',  
+        'LT': 'Lithuania',
+        'PL': 'Poland',
+        'CZ': 'Czech Republic',
+        'SK': 'Slovakia',
+        'HU': 'Hungary',
+        'SI': 'Slovenia',
+        'HR': 'Croatia',
+        'BG': 'Bulgaria',
+        'RO': 'Romania'
+      };
+      
+      // Extract unique countries from institutions
+      data.forEach(institution => {
+        institution.countries.forEach(countryCode => {
+          if (!countryMap.has(countryCode)) {
+            countryMap.set(countryCode, {
+              code: countryCode,
+              name: countryNames[countryCode] || countryCode
+            });
+          }
+        });
+      });
+      
+      // Convert map to array and sort by name
+      const countriesArray = Array.from(countryMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+      setCountries(countriesArray);
+    } catch (error) {
+      console.error('Failed to load countries:', error);
+      toast({
+        title: "Failed to load countries",
+        description: "Could not fetch supported countries. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load countries when component mounts
+  useEffect(() => {
+    loadCountries();
+  }, []);
 
   // Step 1: Get access token via Edge Function
   const getAccessToken = async () => {
@@ -367,13 +427,13 @@ export default function BankAccountSelector() {
                     <SelectTrigger>
                       <SelectValue placeholder="Select your country" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {mockCountries.map((country) => (
-                        <SelectItem key={country.code} value={country.code}>
-                          {country.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
+                     <SelectContent>
+                       {countries.map((country) => (
+                         <SelectItem key={country.code} value={country.code}>
+                           {country.name}
+                         </SelectItem>
+                       ))}
+                     </SelectContent>
                   </Select>
                 </div>
 
