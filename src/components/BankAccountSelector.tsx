@@ -540,7 +540,7 @@ export default function BankAccountSelector() {
 
                 <div className="space-y-4">
                   <Button 
-                    onClick={() => window.open(requisition.link, '_blank')}
+                    onClick={() => window.location.href = requisition.link}
                     className="bg-gradient-primary hover:bg-gradient-accent"
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
