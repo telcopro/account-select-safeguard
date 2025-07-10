@@ -548,16 +548,8 @@ export default function BankAccountSelector() {
                   </Button>
                   
                   <p className="text-sm text-muted-foreground">
-                    After authentication, click the button below to continue
+                    After authentication, you'll be automatically redirected back to continue
                   </p>
-                  
-                  <Button 
-                    variant="outline" 
-                    onClick={loadAccounts}
-                    disabled={loading}
-                  >
-                    {loading ? 'Loading Accounts...' : 'I have completed authentication'}
-                  </Button>
                 </div>
               </div>
             )}
