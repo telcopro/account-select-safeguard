@@ -83,8 +83,6 @@ export default function BankAccountSelector() {
   const [selectedCountry, setSelectedCountry] = useState<string>('');
   const [selectedBank, setSelectedBank] = useState<Institution | null>(null);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
-  const [apiSecretId, setApiSecretId] = useState<string>('');
-  const [apiSecretKey, setApiSecretKey] = useState<string>('');
   const [institutions, setInstitutions] = useState<Institution[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
@@ -99,9 +97,7 @@ export default function BankAccountSelector() {
         body: {
           endpoint,
           method: options.method || 'GET',
-          body: options.body ? JSON.parse(options.body as string) : undefined,
-          secretId: apiSecretId,
-          secretKey: apiSecretKey
+          body: options.body ? JSON.parse(options.body as string) : undefined
         }
       });
 
@@ -115,15 +111,6 @@ export default function BankAccountSelector() {
 
   // Step 1: Get access token via Edge Function
   const getAccessToken = async () => {
-    if (!apiSecretId || !apiSecretKey) {
-      toast({
-        title: "Missing API credentials",
-        description: "Please provide both Secret ID and Secret Key",
-        variant: "destructive"
-      });
-      return;
-    }
-
     setLoading(true);
     try {
       console.log('🔥 Edge Function Mode: Connecting to GoCardless...');
@@ -374,29 +361,6 @@ export default function BankAccountSelector() {
                    </p>
                  </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="secret-id">GoCardless Secret ID</Label>
-                    <Input
-                      id="secret-id"
-                      type="password"
-                      placeholder="Enter your real Secret ID"
-                      value={apiSecretId}
-                      onChange={(e) => setApiSecretId(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="secret-key">GoCardless Secret Key</Label>
-                    <Input
-                      id="secret-key"
-                      type="password"
-                      placeholder="Enter your real Secret Key"
-                      value={apiSecretKey}
-                      onChange={(e) => setApiSecretKey(e.target.value)}
-                    />
-                  </div>
-                </div>
-                
                 <div className="space-y-2">
                   <Label htmlFor="country">Country</Label>
                   <Select value={selectedCountry} onValueChange={setSelectedCountry}>
@@ -415,7 +379,7 @@ export default function BankAccountSelector() {
 
                 <Button 
                   onClick={getAccessToken} 
-                  disabled={!selectedCountry || !apiSecretId || !apiSecretKey || loading}
+                  disabled={!selectedCountry || loading}
                   className="w-full"
                 >
                   {loading ? 'Connecting...' : 'Continue to Bank Selection'}
