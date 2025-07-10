@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -76,6 +77,7 @@ export default function BankAccountSelector() {
   const [requisition, setRequisition] = useState<Requisition | null>(null);
   
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Helper function for API calls via Supabase edge function
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
@@ -345,7 +347,7 @@ export default function BankAccountSelector() {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => window.open('/configuration', '_blank')}
+              onClick={() => navigate('/configuration')}
             >
               <Settings className="h-4 w-4 mr-2" />
               Configure Banks
