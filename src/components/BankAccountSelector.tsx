@@ -133,31 +133,63 @@ export default function BankAccountSelector() {
 
     setLoading(true);
     try {
+      console.log('Attempting authentication with:', {
+        secret_id: apiSecretId.substring(0, 8) + '...',
+        secret_key: apiSecretKey.substring(0, 8) + '...',
+        endpoint: `${API_BASE}/token/new/`
+      });
+
       // Use a CORS proxy for the prototype (not for production!)
       const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
+      const requestBody = {
+        secret_id: apiSecretId.trim(),
+        secret_key: apiSecretKey.trim(),
+      };
+
+      console.log('Request body structure:', Object.keys(requestBody));
+
       const response = await fetch(`${proxyUrl}${API_BASE}/token/new/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
+          'X-Requested-With': 'XMLHttpRequest',
+          'Accept': 'application/json'
         },
-        body: JSON.stringify({
-          secret_id: apiSecretId,
-          secret_key: apiSecretKey,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.log('Error response:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText || 'Authentication failed'}`);
+        console.log('Error response body:', errorText);
+        
+        let errorMessage = `HTTP ${response.status}`;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          console.log('Parsed error:', errorData);
+          errorMessage = errorData.detail || errorData.message || errorMessage;
+        } catch (e) {
+          errorMessage = errorText || errorMessage;
+        }
+
+        // Specific guidance for common errors
+        if (response.status === 403) {
+          errorMessage += '. Check that your credentials are correct and for the right environment (sandbox/live).';
+        }
+
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
-      console.log('Token response:', data);
+      console.log('Success! Token received:', { 
+        access_token_length: data.access?.length,
+        token_type: typeof data.access,
+        expires_in: data.access_expires
+      });
+      
       localStorage.setItem('gc_access_token', data.access);
       
       // Load institutions for selected country
@@ -169,7 +201,7 @@ export default function BankAccountSelector() {
         description: "Connected to GoCardless API",
       });
     } catch (error) {
-      console.error('Authentication error:', error);
+      console.error('Authentication error details:', error);
       toast({
         title: "Authentication failed", 
         description: error instanceof Error ? error.message : "Failed to connect to GoCardless. This might be due to CORS restrictions - in production, API calls should be made from a backend server.",
@@ -385,6 +417,16 @@ export default function BankAccountSelector() {
             {/* Step 1: Country Selection */}
             {step === 'country' && (
               <div className="space-y-4">
+                <div className="p-4 border rounded-lg bg-muted/50">
+                  <h4 className="font-medium mb-2">⚠️ GoCardless Credentials Setup</h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Make sure you're using <strong>sandbox credentials</strong> for testing</li>
+                    <li>• Verify your Secret ID and Secret Key are from the same environment</li>
+                    <li>• Copy credentials exactly (no extra spaces)</li>
+                    <li>• Check if your account has API access enabled</li>
+                  </ul>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="secret-id">GoCardless Secret ID</Label>
