@@ -86,13 +86,29 @@ export default function BankAccountSelector() {
     const authComplete = searchParams.get('auth_complete');
     const authError = searchParams.get('auth_error');
 
-    if (authComplete && ref && requisition) {
-      // Authentication completed successfully, load accounts
-      toast({
-        title: "Bank authentication completed",
-        description: "Loading your accounts...",
-      });
-      loadAccounts();
+    if (authComplete && ref) {
+      // Restore flow state from localStorage
+      const savedRequisition = localStorage.getItem('bank_requisition');
+      const savedSelectedBank = localStorage.getItem('selected_bank');
+      const savedSelectedCountry = localStorage.getItem('selected_country');
+      
+      if (savedRequisition && savedSelectedBank && savedSelectedCountry) {
+        setRequisition(JSON.parse(savedRequisition));
+        setSelectedBank(JSON.parse(savedSelectedBank));
+        setSelectedCountry(savedSelectedCountry);
+        setStep('accounts');
+        
+        // Authentication completed successfully, load accounts
+        toast({
+          title: "Bank authentication completed",
+          description: "Loading your accounts...",
+        });
+        
+        // Load accounts after state is restored
+        setTimeout(() => {
+          loadAccounts();
+        }, 100);
+      }
       
       // Clean up URL params
       navigate('/', { replace: true });
@@ -103,13 +119,20 @@ export default function BankAccountSelector() {
         variant: "destructive"
       });
       
-      // Reset to auth step
-      setStep('auth');
+      // Restore to auth step
+      const savedSelectedBank = localStorage.getItem('selected_bank');
+      const savedSelectedCountry = localStorage.getItem('selected_country');
+      
+      if (savedSelectedBank && savedSelectedCountry) {
+        setSelectedBank(JSON.parse(savedSelectedBank));
+        setSelectedCountry(savedSelectedCountry);
+        setStep('auth');
+      }
       
       // Clean up URL params
       navigate('/', { replace: true });
     }
-  }, [searchParams, requisition, navigate]);
+  }, [searchParams, navigate]);
 
   // Helper function for API calls via Supabase edge function
   const apiCall = async (endpoint: string, options: RequestInit = {}) => {
@@ -256,6 +279,11 @@ export default function BankAccountSelector() {
       setRequisition(requisitionData);
       setStep('auth');
       
+      // Save flow state to localStorage for return from authentication
+      localStorage.setItem('bank_requisition', JSON.stringify(requisitionData));
+      localStorage.setItem('selected_bank', JSON.stringify(institution));
+      localStorage.setItem('selected_country', selectedCountry);
+      
       toast({
         title: "Bank selected",
         description: `Ready to connect to ${institution.name}`,
@@ -364,7 +392,12 @@ export default function BankAccountSelector() {
     setInstitutions([]);
     setAccounts([]);
     setRequisition(null);
+    
+    // Clear all stored flow data
     localStorage.removeItem('gc_access_token');
+    localStorage.removeItem('bank_requisition');
+    localStorage.removeItem('selected_bank');
+    localStorage.removeItem('selected_country');
   };
 
   return (
