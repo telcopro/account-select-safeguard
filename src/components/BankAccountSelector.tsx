@@ -476,33 +476,40 @@ export default function BankAccountSelector() {
             {/* Step 2: Bank Selection */}
             {step === 'bank' && (
               <div className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {institutions.map((institution) => (
-                    <Card 
-                      key={institution.id} 
-                      className="cursor-pointer hover:shadow-lg transition-smooth border hover:border-primary/50"
-                      onClick={() => selectBank(institution)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-center space-x-3">
-                          {institution.logo && (
-                            <img 
-                              src={institution.logo} 
-                              alt={institution.name}
-                              className="w-12 h-12 object-contain rounded"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          )}
-                          <div className="flex-1">
-                            <h3 className="font-medium">{institution.name}</h3>
-                            <p className="text-sm text-muted-foreground">{institution.bic}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="bank-select">Select Your Bank</Label>
+                  <Select onValueChange={(institutionId) => {
+                    const institution = institutions.find(inst => inst.id === institutionId);
+                    if (institution) selectBank(institution);
+                  }}>
+                    <SelectTrigger id="bank-select">
+                      <SelectValue placeholder="Choose your bank from the list" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {institutions
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map((institution) => (
+                        <SelectItem key={institution.id} value={institution.id}>
+                          <div className="flex items-center space-x-3 py-1">
+                            {institution.logo && (
+                              <img 
+                                src={institution.logo} 
+                                alt={institution.name}
+                                className="w-6 h-6 object-contain rounded flex-shrink-0"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{institution.name}</div>
+                              <div className="text-xs text-muted-foreground">{institution.bic}</div>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 {institutions.length === 0 && !loading && (
