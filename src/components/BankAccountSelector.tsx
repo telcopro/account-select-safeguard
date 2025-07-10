@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Globe, Building2, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Settings, X } from 'lucide-react';
+import { Shield, Globe, Building2, CreditCard, CheckCircle2, AlertCircle, ExternalLink, Settings, X, TrendingUp, Code } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -39,6 +39,13 @@ interface Account {
     displayName: string;
     product?: string;
     cashAccountType?: string;
+    bic?: string;
+    msisdn?: string;
+    usage?: string;
+    status?: string;
+    ownerName?: string;
+    linkedAccounts?: string[];
+    [key: string]: any; // Allow additional fields from API
   };
   balances?: Array<{
     balanceAmount: {
@@ -47,6 +54,9 @@ interface Account {
     };
     balanceType: string;
     referenceDate: string;
+    creditLimitIncluded?: boolean;
+    lastChangeDateTime?: string;
+    [key: string]: any; // Allow additional fields from API
   }>;
 }
 
@@ -742,30 +752,83 @@ export default function BankAccountSelector() {
             {/* Step 5: Account Details */}
             {step === 'details' && selectedAccount && (
               <div className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
+                <div className="grid gap-6 lg:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Account Information</CardTitle>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        Account Information
+                      </CardTitle>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-4">
                       {selectedAccount.details && (
                         <>
                           <div>
-                            <Label className="text-sm font-medium">Account Name</Label>
-                            <p className="text-sm">{selectedAccount.details.displayName || selectedAccount.details.name}</p>
+                            <Label className="text-sm font-medium text-muted-foreground">Account Name</Label>
+                            <p className="text-sm font-medium">{selectedAccount.details.displayName || selectedAccount.details.name}</p>
                           </div>
                           <div>
-                            <Label className="text-sm font-medium">IBAN</Label>
-                            <p className="text-sm font-mono">{selectedAccount.details.iban}</p>
+                            <Label className="text-sm font-medium text-muted-foreground">IBAN</Label>
+                            <p className="text-sm font-mono bg-muted/50 p-2 rounded">{selectedAccount.details.iban}</p>
                           </div>
                           <div>
-                            <Label className="text-sm font-medium">Currency</Label>
+                            <Label className="text-sm font-medium text-muted-foreground">Currency</Label>
                             <p className="text-sm">{selectedAccount.details.currency}</p>
                           </div>
                           {selectedAccount.details.product && (
                             <div>
-                              <Label className="text-sm font-medium">Product</Label>
+                              <Label className="text-sm font-medium text-muted-foreground">Product</Label>
                               <p className="text-sm">{selectedAccount.details.product}</p>
+                            </div>
+                          )}
+                          {selectedAccount.details.cashAccountType && (
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Account Type</Label>
+                              <p className="text-sm">{selectedAccount.details.cashAccountType}</p>
+                            </div>
+                          )}
+                          {selectedAccount.details.bic && (
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">BIC</Label>
+                              <p className="text-sm font-mono">{selectedAccount.details.bic}</p>
+                            </div>
+                          )}
+                          {selectedAccount.details.msisdn && (
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Mobile Number</Label>
+                              <p className="text-sm">{selectedAccount.details.msisdn}</p>
+                            </div>
+                          )}
+                          {selectedAccount.details.usage && (
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Usage</Label>
+                              <p className="text-sm">{selectedAccount.details.usage}</p>
+                            </div>
+                          )}
+                          {selectedAccount.details.status && (
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                              <Badge variant={selectedAccount.details.status === 'enabled' ? 'default' : 'secondary'}>
+                                {selectedAccount.details.status}
+                              </Badge>
+                            </div>
+                          )}
+                          {selectedAccount.details.ownerName && (
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Owner Name</Label>
+                              <p className="text-sm">{selectedAccount.details.ownerName}</p>
+                            </div>
+                          )}
+                          {selectedAccount.details.linkedAccounts && selectedAccount.details.linkedAccounts.length > 0 && (
+                            <div>
+                              <Label className="text-sm font-medium text-muted-foreground">Linked Accounts</Label>
+                              <div className="space-y-1">
+                                {selectedAccount.details.linkedAccounts.map((linkedAccount, idx) => (
+                                  <p key={idx} className="text-sm font-mono text-xs bg-muted/50 p-1 rounded">
+                                    {linkedAccount}
+                                  </p>
+                                ))}
+                              </div>
                             </div>
                           )}
                         </>
@@ -775,25 +838,69 @@ export default function BankAccountSelector() {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Balance Information</CardTitle>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5" />
+                        Balance Information
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {selectedAccount.balances?.map((balance, index) => (
-                        <div key={index} className="p-3 border rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <Badge variant="outline">{balance.balanceType}</Badge>
-                            <p className="font-semibold">
-                              {balance.balanceAmount.amount} {balance.balanceAmount.currency}
-                            </p>
+                        <div key={index} className="p-4 border rounded-lg bg-muted/30">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="space-y-1">
+                              <Badge variant="outline" className="text-xs">
+                                {balance.balanceType}
+                              </Badge>
+                              {balance.creditLimitIncluded !== undefined && (
+                                <div className="text-xs text-muted-foreground">
+                                  Credit limit included: {balance.creditLimitIncluded ? 'Yes' : 'No'}
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-lg">
+                                {balance.balanceAmount.amount} {balance.balanceAmount.currency}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            As of {new Date(balance.referenceDate).toLocaleDateString()}
-                          </p>
+                          <div className="text-xs text-muted-foreground space-y-1">
+                            <p>Reference Date: {new Date(balance.referenceDate).toLocaleDateString()}</p>
+                            {balance.lastChangeDateTime && (
+                              <p>Last Change: {new Date(balance.lastChangeDateTime).toLocaleString()}</p>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </CardContent>
                   </Card>
                 </div>
+
+                {/* Raw Data Section for Debugging */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Code className="h-5 w-5" />
+                      Raw Account Data
+                      <Badge variant="outline" className="ml-auto">Debug Info</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Account Details</Label>
+                        <pre className="text-xs bg-muted/50 p-3 rounded overflow-auto max-h-64">
+                          {JSON.stringify(selectedAccount.details, null, 2)}
+                        </pre>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Balance Data</Label>
+                        <pre className="text-xs bg-muted/50 p-3 rounded overflow-auto max-h-64">
+                          {JSON.stringify(selectedAccount.balances, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 <div className="flex justify-center">
                   <Button onClick={resetFlow} variant="outline">
