@@ -25,6 +25,38 @@ interface Institution {
   logo: string;
 }
 
+interface Transaction {
+  transactionId: string;
+  entryReference?: string;
+  endToEndId?: string;
+  mandateId?: string;
+  checkId?: string;
+  creditorId?: string;
+  bookingDate: string;
+  valueDate?: string;
+  transactionAmount: {
+    amount: string;
+    currency: string;
+  };
+  creditorName?: string;
+  creditorAccount?: {
+    iban?: string;
+    bban?: string;
+  };
+  debtorName?: string;
+  debtorAccount?: {
+    iban?: string;
+    bban?: string;
+  };
+  remittanceInformationUnstructured?: string;
+  remittanceInformationStructured?: string;
+  additionalInformation?: string;
+  bankTransactionCode?: string;
+  purposeCode?: string;
+  proprietaryBankTransactionCode?: string;
+  [key: string]: any; // Allow additional fields from API
+}
+
 interface Account {
   id: string;
   iban: string;
@@ -58,6 +90,10 @@ interface Account {
     lastChangeDateTime?: string;
     [key: string]: any; // Allow additional fields from API
   }>;
+  transactions?: {
+    booked: Transaction[];
+    pending: Transaction[];
+  };
 }
 
 interface Requisition {
@@ -422,37 +458,40 @@ export default function BankAccountSelector() {
     }
   };
 
-  // Step 5: Load account details (REAL API)
+  // Step 5: Load account details and transactions (REAL API)
   const selectAccount = async (account: Account) => {
     setLoading(true);
     try {
-      console.log('🔥 REAL API: Loading details for account:', account.id);
+      console.log('🔥 REAL API: Loading details and transactions for account:', account.id);
       
-      // Get real detailed account information
-      const [details, balances] = await Promise.all([
+      // Get real detailed account information including transactions
+      const [details, balances, transactions] = await Promise.all([
         apiCall(`/accounts/${account.id}/details/`),
         apiCall(`/accounts/${account.id}/balances/`),
+        apiCall(`/accounts/${account.id}/transactions/`),
       ]);
 
       console.log('Account details received:', details);
       console.log('Account balances received:', balances);
+      console.log('Account transactions received:', transactions);
 
       setSelectedAccount({
         ...account,
         details: details.account,
         balances: balances.balances,
+        transactions: transactions.transactions,
       });
       setStep('details');
 
       toast({
-        title: "Account details loaded",
-        description: "Real account information retrieved successfully",
+        title: "Account data loaded",
+        description: "Account details and transactions retrieved successfully",
       });
     } catch (error) {
-      console.error('Failed to load real account details:', error);
+      console.error('Failed to load real account data:', error);
       toast({
-        title: "Failed to load account details",
-        description: error instanceof Error ? error.message : "Could not fetch account details",
+        title: "Failed to load account data",
+        description: error instanceof Error ? error.message : "Could not fetch account details and transactions",
         variant: "destructive"
       });
     } finally {
@@ -875,6 +914,164 @@ export default function BankAccountSelector() {
                   </Card>
                 </div>
 
+                {/* Transactions Section */}
+                {selectedAccount.transactions && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <TrendingUp className="h-5 w-5" />
+                        Transaction History
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-6">
+                        {/* Booked Transactions */}
+                        {selectedAccount.transactions.booked && selectedAccount.transactions.booked.length > 0 && (
+                          <div>
+                            <h4 className="font-medium mb-3 flex items-center gap-2">
+                              <Badge variant="default">Booked Transactions</Badge>
+                              <span className="text-sm text-muted-foreground">
+                                ({selectedAccount.transactions.booked.length} transactions)
+                              </span>
+                            </h4>
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                              {selectedAccount.transactions.booked.map((transaction, index) => (
+                                <div key={transaction.transactionId || index} className="border rounded-lg p-4 bg-muted/30">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-sm truncate">
+                                        {transaction.remittanceInformationUnstructured || 
+                                         transaction.remittanceInformationStructured || 
+                                         transaction.creditorName || 
+                                         transaction.debtorName || 
+                                         'Transaction'}
+                                      </p>
+                                      <div className="flex gap-2 items-center mt-1">
+                                        <Badge variant="outline" className="text-xs">
+                                          {new Date(transaction.bookingDate).toLocaleDateString()}
+                                        </Badge>
+                                        {transaction.valueDate && (
+                                          <Badge variant="outline" className="text-xs">
+                                            Value: {new Date(transaction.valueDate).toLocaleDateString()}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="text-right ml-4">
+                                      <p className={`font-semibold ${
+                                        parseFloat(transaction.transactionAmount.amount) >= 0 
+                                          ? 'text-green-600' 
+                                          : 'text-red-600'
+                                      }`}>
+                                        {transaction.transactionAmount.amount} {transaction.transactionAmount.currency}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Additional Transaction Details */}
+                                  <div className="text-xs text-muted-foreground space-y-1">
+                                    {transaction.creditorName && (
+                                      <p>Creditor: {transaction.creditorName}</p>
+                                    )}
+                                    {transaction.debtorName && (
+                                      <p>Debtor: {transaction.debtorName}</p>
+                                    )}
+                                    {transaction.creditorAccount?.iban && (
+                                      <p>Creditor IBAN: {transaction.creditorAccount.iban}</p>
+                                    )}
+                                    {transaction.debtorAccount?.iban && (
+                                      <p>Debtor IBAN: {transaction.debtorAccount.iban}</p>
+                                    )}
+                                    {transaction.bankTransactionCode && (
+                                      <p>Bank Code: {transaction.bankTransactionCode}</p>
+                                    )}
+                                    {transaction.purposeCode && (
+                                      <p>Purpose: {transaction.purposeCode}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Pending Transactions */}
+                        {selectedAccount.transactions.pending && selectedAccount.transactions.pending.length > 0 && (
+                          <div>
+                            <h4 className="font-medium mb-3 flex items-center gap-2">
+                              <Badge variant="secondary">Pending Transactions</Badge>
+                              <span className="text-sm text-muted-foreground">
+                                ({selectedAccount.transactions.pending.length} transactions)
+                              </span>
+                            </h4>
+                            <div className="space-y-2 max-h-96 overflow-y-auto">
+                              {selectedAccount.transactions.pending.map((transaction, index) => (
+                                <div key={transaction.transactionId || index} className="border rounded-lg p-4 bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
+                                  <div className="flex justify-between items-start mb-2">
+                                    <div className="flex-1 min-w-0">
+                                      <p className="font-medium text-sm truncate">
+                                        {transaction.remittanceInformationUnstructured || 
+                                         transaction.remittanceInformationStructured || 
+                                         transaction.creditorName || 
+                                         transaction.debtorName || 
+                                         'Pending Transaction'}
+                                      </p>
+                                      <div className="flex gap-2 items-center mt-1">
+                                        <Badge variant="outline" className="text-xs">
+                                          {new Date(transaction.bookingDate).toLocaleDateString()}
+                                        </Badge>
+                                        {transaction.valueDate && (
+                                          <Badge variant="outline" className="text-xs">
+                                            Value: {new Date(transaction.valueDate).toLocaleDateString()}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="text-right ml-4">
+                                      <p className={`font-semibold ${
+                                        parseFloat(transaction.transactionAmount.amount) >= 0 
+                                          ? 'text-green-600' 
+                                          : 'text-red-600'
+                                      }`}>
+                                        {transaction.transactionAmount.amount} {transaction.transactionAmount.currency}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Additional Transaction Details */}
+                                  <div className="text-xs text-muted-foreground space-y-1">
+                                    {transaction.creditorName && (
+                                      <p>Creditor: {transaction.creditorName}</p>
+                                    )}
+                                    {transaction.debtorName && (
+                                      <p>Debtor: {transaction.debtorName}</p>
+                                    )}
+                                    {transaction.creditorAccount?.iban && (
+                                      <p>Creditor IBAN: {transaction.creditorAccount.iban}</p>
+                                    )}
+                                    {transaction.debtorAccount?.iban && (
+                                      <p>Debtor IBAN: {transaction.debtorAccount.iban}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* No Transactions Message */}
+                        {(!selectedAccount.transactions.booked || selectedAccount.transactions.booked.length === 0) &&
+                         (!selectedAccount.transactions.pending || selectedAccount.transactions.pending.length === 0) && (
+                          <div className="text-center py-8">
+                            <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-muted-foreground">No transactions found for this account</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Raw Data Section for Debugging */}
                 <Card>
                   <CardHeader>
@@ -898,6 +1095,14 @@ export default function BankAccountSelector() {
                           {JSON.stringify(selectedAccount.balances, null, 2)}
                         </pre>
                       </div>
+                      {selectedAccount.transactions && (
+                        <div>
+                          <Label className="text-sm font-medium text-muted-foreground">Transaction Data</Label>
+                          <pre className="text-xs bg-muted/50 p-3 rounded overflow-auto max-h-64">
+                            {JSON.stringify(selectedAccount.transactions, null, 2)}
+                          </pre>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
