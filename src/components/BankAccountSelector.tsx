@@ -338,7 +338,6 @@ export default function BankAccountSelector() {
           institution_id: institution.id,
           reference: `ref_${Date.now()}`,
           user_language: 'EN',
-          agreement: null,
           account_selection: false,
           redirect_immediate: false
         }),
